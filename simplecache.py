@@ -27,6 +27,12 @@ class Cache:
         now = time.monotonic()
         expires = now + ttl
 
+        # heap edgecase
+        if key in self.storage:
+            i = [node[1] for node in self.index].index(key)
+            del self.index[i]
+            del self.storage[key]
+
         with self.lock:
             self.storage[key] = (value, expires)
             self.index.append((expires, key))

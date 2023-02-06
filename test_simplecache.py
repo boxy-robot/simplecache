@@ -128,5 +128,11 @@ class TestMaxSize:
         assert cache.get('cook') == 'bender'
 
 
-
+class TestSetKeyAgain:
+    def test_set_twice(self):
+        cache = simplecache.Cache(ttl=60)
+        cache.set('pin', 1077)
+        cache.set('pin', 1077)
+        assert len(cache.storage) == 1
+        assert len(cache.index) == 1
 
