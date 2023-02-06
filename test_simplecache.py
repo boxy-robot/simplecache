@@ -77,7 +77,7 @@ class TestExpiration:
 
         # make sure storage objects get cleared
         assert not cache.storage
-        assert not cache.index
+        assert not cache.heap
 
     def test_per_key_ttl(self):
         cache = simplecache.Cache(ttl=.1)
@@ -134,5 +134,5 @@ class TestSetKeyAgain:
         cache.set('pin', 1077)
         cache.set('pin', 1077)
         assert len(cache.storage) == 1
-        assert len(cache.index) == 1
+        assert len(cache.heap) == 1
 

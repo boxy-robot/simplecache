@@ -1,3 +1,4 @@
+import heapq
 import time
 import threading
 
@@ -16,10 +17,8 @@ class Cache:
         self.ttl = ttl or float('inf')
         self.maxsize = maxsize
         self.storage = {}
+        self.heap = []  # (expires, key)
         self.lock = threading.Lock()
-
-        # poor man's priority queue
-        self.index = []  # (expires, key) pairs in desc order (popping is cheaper)
 
     def set(self, key, value, ttl=_DEFAULT):
         ttl = self.ttl if ttl is _DEFAULT else ttl
@@ -27,16 +26,18 @@ class Cache:
         now = time.monotonic()
         expires = now + ttl
 
-        # heap edgecase
-        if key in self.storage:
-            i = [node[1] for node in self.index].index(key)
-            del self.index[i]
-            del self.storage[key]
-
+        # prevent duplicates in heap
         with self.lock:
+            if key in self.storage:
+                # find the index for key in the heap
+                i = [node[1] for node in self.heap].index(key)
+                del self.heap[i]
+                heapq.heapify(self.heap)
+                del self.storage[key]
+
             self.storage[key] = (value, expires)
-            self.index.append((expires, key))
-            self.index.sort(reverse=True)  # put staler keys towards back
+            heapitem = (expires, key)
+            heapq.heappush(self.heap, heapitem)
 
         self.prune()
 
@@ -58,26 +59,26 @@ class Cache:
 
     def prune(self):
         now = time.monotonic()
-        while self.index:
-            expires, key = self.index[-1]
+        while self.heap:
+            expires, key = self.heap[0]
             expired = now > expires
             maxsize = self.maxsize or float('inf')
             oversized = len(self.storage) > maxsize
             if expired or oversized:
                 with self.lock:
                     del self.storage[key]
-                    self.index.pop()
+                    heapq.heappop(self.heap)
             else:
                 break
 
     def clear(self):
         with self.lock:
             self.storage = {}
-            self.index = []
+            self.heap = []
 
     def __iter__(self):
         self.prune()
-        for _, key in self.index:
+        for _, key in self.heap:
             value, expires = self.storage[key]
             yield key, value
 
